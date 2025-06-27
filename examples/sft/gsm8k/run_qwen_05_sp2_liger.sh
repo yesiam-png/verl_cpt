@@ -7,19 +7,25 @@ shift 2
 
 torchrun --standalone --nnodes=1 --nproc_per_node=$nproc_per_node \
      -m verl.trainer.fsdp_sft_trainer \
-    data.train_files=$HOME/data/gsm8k/train.parquet \
-    data.val_files=$HOME/data/gsm8k/test.parquet \
-    data.prompt_key=extra_info \
-    data.response_key=extra_info \
-    optim.lr=1e-4 \
-    data.prompt_dict_keys=['question'] \
-    +data.response_dict_keys=['answer'] \
-    data.micro_batch_size=4 \
-    model.partial_pretrain=Qwen/Qwen2.5-1.5B \
+    data.train_files=$HOME/data/MegaMath-Web-Pro-Max/train \
+    data.val_files=$HOME/data/MegaMath-Web-Pro-Max/test \
+    data.response_key=text \
+    data.max_length=8192 \
+    data.train_batch_size=1024 \
+    data.truncation=right \
+    optim.lr=5e-5 \
+    optim.lr_scheduler=wsd \
+    optim.weight_decay=0.1 \
+    optim.warmup_steps_ratio=0 \
+    +data.response_dict_keys=['text'] \
+    data.micro_batch_size=128 \
+    model.partial_pretrain=ZhangShenao/Llama-3.2-1B \
     model.use_liger=True \
-    trainer.project_name=gsm8k-sft \
-    trainer.experiment_name=gsm8k-sft-qwen-2.5-1.5b-sp2-liger \
+    trainer.project_name=cpt-math \
+    trainer.experiment_name=cpt-llama-3.2-1b-sp2-liger \
     trainer.logger=['console'] \
     trainer.default_hdfs_dir=null $@ \
+    trainer.save_freq=20 \
+    trainer.test_freq=-1 \
     ulysses_sequence_parallel_size=2 \
     use_remove_padding=true
