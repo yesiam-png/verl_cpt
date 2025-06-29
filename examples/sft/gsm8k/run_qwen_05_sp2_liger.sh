@@ -4,8 +4,8 @@ nproc_per_node=8
 
 # Shift the arguments so $@ refers to the rest
 shift 2
-#--rdzv_endpoint=240.62.238.201:29500 #--standalone
-torchrun --nnodes=2 --nproc_per_node=$nproc_per_node --node_rank 0 --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint=240.62.238.201:29500 \
+#--standalone #--node_rank 0 --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint=240.62.238.201:29500
+torchrun --standalone --nnodes=1 --nproc_per_node=$nproc_per_node \
      -m verl.trainer.fsdp_sft_trainer \
     data.train_files=/root/.cache/huggingface/hub/datasets--OctoThinker--MegaMath-Web-Pro-Max/snapshots/b6478677389dc7e86f39f1ec5682eecac6e5dccb/train \
     data.val_files=/root/.cache/huggingface/hub/datasets--OctoThinker--MegaMath-Web-Pro-Max/snapshots/b6478677389dc7e86f39f1ec5682eecac6e5dccb/test \
@@ -22,7 +22,7 @@ torchrun --nnodes=2 --nproc_per_node=$nproc_per_node --node_rank 0 --rdzv_id "my
     model.partial_pretrain=ZhangShenao/Llama-3.2-1B \
     model.use_liger=True \
     trainer.project_name=cpt-math \
-    trainer.experiment_name=cpt-llama-3.2-1b-sp2-liger \
+    trainer.experiment_name=cpt-pack-llama-3.2-1b-sp2-liger \
     trainer.logger=['console','wandb'] \
     trainer.default_hdfs_dir=null $@ \
     trainer.save_freq=-1 \
