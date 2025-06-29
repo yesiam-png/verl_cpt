@@ -51,11 +51,11 @@ class CPTDataset(Dataset):
         self.truncation = truncation
         self.use_shm = use_shm
         if parquet_files.endswith("train"):
-            parquet_files = [parquet_files[:-5] + f"000_{i:05d}.parquet" for i in range(60)]
-            self.split = "train"
+            parquet_files = [parquet_files[:-5] + f"000_{i:05d}.parquet" for i in range(4)]
+           # self.split = "train"
         elif parquet_files.endswith("test"):
-            parquet_files = [parquet_files[:-4] + f"000_{i:05d}.parquet" for i in range(99, 100)]
-            self.split = "test"
+            parquet_files = [parquet_files[:-4] + f"000_{i:05d}.parquet" for i in range(1)]
+           # self.split = "test"
         if not isinstance(parquet_files, List):
             parquet_files = [parquet_files]
 

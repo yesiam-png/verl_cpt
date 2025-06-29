@@ -4,28 +4,28 @@ nproc_per_node=8
 
 # Shift the arguments so $@ refers to the rest
 shift 2
-
-torchrun --standalone --nnodes=1 --nproc_per_node=$nproc_per_node \
+#--rdzv_endpoint=240.62.238.201:29500 #--standalone
+torchrun --nnodes=2 --nproc_per_node=$nproc_per_node --node_rank 0 --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint=240.62.238.201:29500 \
      -m verl.trainer.fsdp_sft_trainer \
-    data.train_files=$HOME/data/MegaMath-Web-Pro-Max/train \
-    data.val_files=$HOME/data/MegaMath-Web-Pro-Max/test \
+    data.train_files=/root/.cache/huggingface/hub/datasets--OctoThinker--MegaMath-Web-Pro-Max/snapshots/b6478677389dc7e86f39f1ec5682eecac6e5dccb/train \
+    data.val_files=/root/.cache/huggingface/hub/datasets--OctoThinker--MegaMath-Web-Pro-Max/snapshots/b6478677389dc7e86f39f1ec5682eecac6e5dccb/test \
     data.response_key=text \
     data.max_length=8192 \
-    data.train_batch_size=1024 \
+    data.train_batch_size=512 \
     data.truncation=right \
     optim.lr=5e-5 \
     optim.lr_scheduler=wsd \
     optim.weight_decay=0.1 \
     optim.warmup_steps_ratio=0 \
     +data.response_dict_keys=['text'] \
-    data.micro_batch_size=128 \
+    data.micro_batch_size_per_gpu=32 \
     model.partial_pretrain=ZhangShenao/Llama-3.2-1B \
     model.use_liger=True \
     trainer.project_name=cpt-math \
     trainer.experiment_name=cpt-llama-3.2-1b-sp2-liger \
-    trainer.logger=['console'] \
+    trainer.logger=['console','wandb'] \
     trainer.default_hdfs_dir=null $@ \
-    trainer.save_freq=20 \
+    trainer.save_freq=-1 \
     trainer.test_freq=-1 \
     ulysses_sequence_parallel_size=2 \
     use_remove_padding=true
