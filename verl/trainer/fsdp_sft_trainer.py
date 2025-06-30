@@ -586,7 +586,7 @@ def create_sft_dataset(data_paths, data_config, tokenizer):
         dataset_cls = MultiTurnSFTDataset
     # Default to single-turn dataset
     else:
-        dataset_cls = PackedCPTDataset
+        dataset_cls = CPTDataset
 
     # Create datasets based on the selected class
     dataset = dataset_cls(parquet_files=data_paths, tokenizer=tokenizer, config=data_config)

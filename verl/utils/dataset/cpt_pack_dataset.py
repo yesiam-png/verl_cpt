@@ -28,7 +28,7 @@ from transformers import PreTrainedTokenizer
 from verl.utils import hf_tokenizer
 from verl.utils.fs import copy_to_local
 from verl.utils.model import compute_position_id_with_mask
-
+from tqdm import tqdm
 
 class PackedCPTDataset(Dataset):
     """
@@ -120,99 +120,102 @@ class PackedCPTDataset(Dataset):
         self.responses = self.responses.tolist()
 
         # Newly added
-        self.packed_examples = self._pack_sequences(self.responses)
+        self.packed_examples = self.pack_sequences(self.responses)
         print(f"Created {len(self.packed_examples)} packed examples from {len(self.responses)} original sequences")
 
-    def _finalize_packed_sequence(self, packed_data: list, 
-                                  current_input_ids: List[int], 
-                                  current_attention_mask: List[int], 
-                                  current_position_ids: List[int], 
-                                  current_seq_boundaries: List[dict]):
-        """Pad the current packed sequence to max_length and create attention mask, position ids, and loss mask."""
-        seq_len = len(current_input_ids)
-        if seq_len > self.max_length:
-            raise ValueError(f"Packed sequence length {seq_len} exceeds max_length {self.max_length}")
-        pad_len = self.max_length - seq_len
+    def _finalize_packed_sequence(
+        self,
+        packed_data,
+        input_ids: List[int],
+        attn_mask: List[int],
+        pos_ids: List[int],
+        seq_boundaries,
+    ) -> None:
+        L = len(input_ids)
+        # 1D → 4D padding mask: [1,1,1,L]
+        pad_mask = torch.tensor(attn_mask, dtype=torch.float32)[None, None, None, :]
 
-        # Pad input_ids and attention_mask up to max_length
-        if pad_len > 0:
-            pad_token_id = (self.tokenizer.pad_token_id 
-                            if self.tokenizer.pad_token_id is not None 
-                            else self.tokenizer.eos_token_id)
-            current_input_ids.extend([pad_token_id] * pad_len)
-            current_attention_mask.extend([0] * pad_len)
-            current_position_ids.extend([0] * pad_len)  # position ids for pads can be 0 (they won't be attended)
+        # Build block-diagonal causal mask via torch.block_diag
+        lengths = [b["end"] - b["start"] for b in seq_boundaries]
+        blocks = [torch.tril(torch.ones((l, l), dtype=torch.float32)) for l in lengths]
+        block = torch.block_diag(*blocks)  # [L, L]
+        attention_mask = pad_mask * block[None, None, :, :]  # [1,1,L,L]
 
-        # Create loss mask: start with 1 for all real tokens (where attention_mask is 1) and 0 for padding.
-        loss_mask = current_attention_mask.copy()  # 1 for tokens, 0 for pads initially
-        # Zero-out the last token of each sequence (EOS token) in the loss mask
-        for boundary in current_seq_boundaries:
-            eos_index = boundary['end'] - 1  # index of the EOS token for this sequence
-            if 0 <= eos_index < len(loss_mask):
-                loss_mask[eos_index] = 0
+        # Loss mask: 1 on real tokens, 0 on pads; zero out EOS tokens
+        loss_mask = torch.tensor(attn_mask, dtype=torch.long)
+        eos_indices = [b["end"] - 1 for b in seq_boundaries]
+        loss_mask[eos_indices] = 0
 
-        # Convert to tensors
         example = {
-            "input_ids": torch.tensor(current_input_ids, dtype=torch.long),
-            "attention_mask": torch.tensor(current_attention_mask, dtype=torch.long),
-            "position_ids": torch.tensor(current_position_ids, dtype=torch.long),
-            "loss_mask": torch.tensor(loss_mask, dtype=torch.long)
+            "input_ids":      torch.tensor(input_ids,      dtype=torch.long),
+            "attention_mask": attention_mask,               # 4D float mask
+            "position_ids":   torch.tensor(pos_ids,        dtype=torch.long),
+            "loss_mask":      loss_mask,                   # 1D long mask
         }
         packed_data.append(example)
 
-    def _pack_sequences(self, sequences: List[str]) -> List[dict]:
+    def pack_sequences(self, sequences: List[str]):
+        """
+        Tokenizes and packs a list of raw text sequences into
+        fixed-length examples ready for model training.
+        """
         packed_data = []
-        current_input_ids = []
-        current_attention_mask = []
-        current_position_ids = []
-        current_seq_boundaries = []  # Track where each sequence starts/ends
-        for seq_idx, text in enumerate(sequences):
-            # Append EOS token to each sequence
-            text_with_eos = text + self.tokenizer.eos_token
-            tokens = self.tokenizer(text_with_eos, add_special_tokens=False, return_tensors="pt")
-            seq_input_ids = tokens["input_ids"][0].tolist()       # list of token ids for this sequence + EOS
-            seq_attn_mask = tokens["attention_mask"][0].tolist()  # list of 1s (since text and EOS are real tokens)
+        cur_ids: List[int] = []
+        cur_attn: List[int] = []
+        cur_pos: List[int] = []
+        cur_bounds = []
+        batch_size = 512
 
-            seq_len = len(seq_input_ids)
-            if seq_len > self.max_length:
-                if self.truncation == "left":
-                    # keep the last max_length tokens
-                    seq_input_ids = seq_input_ids[-self.max_length:]
-                    seq_attn_mask = seq_attn_mask[-self.max_length:]
-                elif self.truncation == "right":
-                    # keep the first max_length tokens
-                    seq_input_ids = seq_input_ids[: self.max_length]
-                    seq_attn_mask = seq_attn_mask[: self.max_length]
-                else:  # "error"
-                    raise NotImplementedError(f"Sequence length {seq_len} > max_length {self.max_length}")
+        for i in tqdm(range(0, len(sequences), batch_size)):
+            batch = sequences[i : i + batch_size]
+            # Fast batch tokenization
+            batch_texts = [text + self.tokenizer.eos_token for text in batch]
+            enc = self.tokenizer(batch_texts, add_special_tokens=False)
 
-            # If adding this sequence would overflow max_length, finalize the current pack first
-            if len(current_input_ids) + len(seq_input_ids) > self.max_length:
-                if len(current_input_ids) > 0:
-                    # Finalize current pack (pad to max_length and create a packed example)
-                    self._finalize_packed_sequence(packed_data, current_input_ids, 
-                                                   current_attention_mask, current_position_ids, current_seq_boundaries)
-                # Reset buffers for a new pack
-                current_input_ids = []
-                current_attention_mask = []
-                current_position_ids = []
-                current_seq_boundaries = []
+            for j, seq_input_ids in enumerate(enc["input_ids"]):
+                seq_idx = i + j
+                # Apply truncation if necessary
+                if len(seq_input_ids) > self.max_length:
+                    if self.truncation == "left":
+                        seq_input_ids = seq_input_ids[-self.max_length:]
+                    elif self.truncation == "right":
+                        seq_input_ids = seq_input_ids[: self.max_length]
+                    else:
+                        raise ValueError(
+                            f"Sequence length {len(seq_input_ids)} exceeds max_length={self.max_length}"
+                        )
 
-            # Determine start and end indices for this sequence in the current packed sequence
-            start_index = len(current_input_ids)
-            end_index = start_index + len(seq_input_ids)
-            current_seq_boundaries.append({'start': start_index, 'end': end_index, 'seq_id': seq_idx})
+                length = len(seq_input_ids)
+                # If overflow, finalize current pack and start a new one
+                if len(cur_ids) + length > self.max_length:
+                    if cur_ids:
+                        self._finalize_packed_sequence(
+                            packed_data,
+                            cur_ids,
+                            cur_attn,
+                            cur_pos,
+                            cur_bounds,
+                        )
+                    cur_ids, cur_attn, cur_pos, cur_bounds = [], [], [], []
 
-            # Extend the current buffers with this sequence
-            current_input_ids.extend(seq_input_ids)
-            current_attention_mask.extend(seq_attn_mask)
-            # Assign position ids starting at 0 for this new sequence
-            current_position_ids.extend(list(range(len(seq_input_ids))))
+                # Record boundaries and extend buffers
+                start = len(cur_ids)
+                end = start + length
+                cur_bounds.append({"start": start, "end": end, "seq_id": seq_idx})
+                cur_ids.extend(seq_input_ids)
+                cur_attn.extend([1] * length)
+                cur_pos.extend(list(range(length)))
 
-        # Finalize the last pack if it has any content
-        if current_input_ids:
-            self._finalize_packed_sequence(packed_data, current_input_ids, 
-                                           current_attention_mask, current_position_ids, current_seq_boundaries)
+        # Finalize the last pack
+        if cur_ids:
+            self._finalize_packed_sequence(
+                packed_data,
+                cur_ids,
+                cur_attn,
+                cur_pos,
+                cur_bounds,
+            )
+
         return packed_data
 
     def __len__(self):

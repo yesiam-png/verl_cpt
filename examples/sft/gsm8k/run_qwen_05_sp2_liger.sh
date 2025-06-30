@@ -7,8 +7,8 @@ shift 2
 #--standalone #--node_rank 0 --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint=240.62.238.201:29500
 torchrun --standalone --nnodes=1 --nproc_per_node=$nproc_per_node \
      -m verl.trainer.fsdp_sft_trainer \
-    data.train_files=/root/.cache/huggingface/hub/datasets--OctoThinker--MegaMath-Web-Pro-Max/snapshots/b6478677389dc7e86f39f1ec5682eecac6e5dccb/train \
-    data.val_files=/root/.cache/huggingface/hub/datasets--OctoThinker--MegaMath-Web-Pro-Max/snapshots/b6478677389dc7e86f39f1ec5682eecac6e5dccb/test \
+    data.train_files=s3://afm-common-permanent/shenao_zhang/OctoThinkerProMax/train \
+    data.val_files=s3://afm-common-permanent/shenao_zhang/OctoThinkerProMax/test \
     data.response_key=text \
     data.max_length=8192 \
     data.train_batch_size=512 \
@@ -18,7 +18,7 @@ torchrun --standalone --nnodes=1 --nproc_per_node=$nproc_per_node \
     optim.weight_decay=0.1 \
     optim.warmup_steps_ratio=0 \
     +data.response_dict_keys=['text'] \
-    data.micro_batch_size_per_gpu=32 \
+    data.micro_batch_size_per_gpu=64 \
     model.partial_pretrain=ZhangShenao/Llama-3.2-1B \
     model.use_liger=True \
     trainer.project_name=cpt-math \
@@ -27,5 +27,5 @@ torchrun --standalone --nnodes=1 --nproc_per_node=$nproc_per_node \
     trainer.default_hdfs_dir=null $@ \
     trainer.save_freq=-1 \
     trainer.test_freq=-1 \
-    ulysses_sequence_parallel_size=2 \
+    ulysses_sequence_parallel_size=4 \
     use_remove_padding=true
