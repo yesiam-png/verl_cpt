@@ -8,7 +8,7 @@ export MASTER_PORT=29500
 # Shift the arguments so $@ refers to the rest
 shift 2
 #--standalone #--node_rank 0 --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint="${MASTER_ADDR}:${MASTER_PORT}"
-torchrun --nnodes=1 --nproc_per_node=$nproc_per_node --node_rank $NODE_RANK --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint="${MASTER_ADDR}:${MASTER_PORT}" \
+torchrun --nnodes=8 --nproc_per_node=$nproc_per_node --node_rank $NODE_RANK --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint="${MASTER_ADDR}:${MASTER_PORT}" \
      -m verl.trainer.fsdp_sft_trainer \
     data.train_files=s3://afm-common-permanent/shenao_zhang/OctoThinkerProMax/train \
     data.val_files=s3://afm-common-permanent/shenao_zhang/OctoThinkerProMax/test \
