@@ -142,6 +142,7 @@ class FSDPSFTTrainer:
             print(f"Using FSDP rank {rank} and size {world_size} for data distribution")
 
         self.train_sampler = DistributedSampler(self.train_dataset, shuffle=True, num_replicas=world_size, rank=rank, drop_last=True)
+        self.train_sampler.set_epoch(epoch=1)
         self.train_dataloader = StatefulDataLoader(
             dataset=self.train_dataset,
             batch_size=config.data.train_batch_size,
@@ -533,21 +534,30 @@ class FSDPSFTTrainer:
         sched_sd = torch.load(os.path.join(path, f"sched_rank{rank}.pt"), map_location="cpu", weights_only=False)
         self.lr_scheduler.load_state_dict(sched_sd)
 
-        # only rank 0 reloads the shared dataloader state
-        if rank == 0:
-            #self.dl_state = torch.load(os.path.join(path, "dataloader.pt"), map_location="cpu")
-            #self.loaded_step = self.dl_state["global_step"]
+        # every rank restores sampler+dataloader state so they're all in sync
+        dataloader_local_path = os.path.join(path, "dataloader.pt")
+        dataloader_state_dict = torch.load(dataloader_local_path, weights_only=False)
+       # self.train_sampler.load_state_dict(dataloader_state_dict["sampler"])
+        self.train_dataloader.load_state_dict(dataloader_state_dict["dataloader"])
+        self.loaded_step = dataloader_state_dict["global_step"]
+        if self.device_mesh.get_rank() == 0:
+            print(f"Resuming from global step {self.loaded_step}")
 
-            dataloader_local_path = os.path.join(path, "dataloader.pt")
-            #if os.path.exists(dataloader_local_path):
-            dataloader_state_dict = torch.load(dataloader_local_path, weights_only=False)
-            self.train_dataloader.load_state_dict(dataloader_state_dict["dataloader"])
+        # only rank 0 reloads the shared dataloader state
+   #     if rank == 0:
+   #         #self.dl_state = torch.load(os.path.join(path, "dataloader.pt"), map_location="cpu")
+   #         #self.loaded_step = self.dl_state["global_step"]
+
+   #         dataloader_local_path = os.path.join(path, "dataloader.pt")
+   #         #if os.path.exists(dataloader_local_path):
+   #         dataloader_state_dict = torch.load(dataloader_local_path, weights_only=False)
+   #         self.train_dataloader.load_state_dict(dataloader_state_dict["dataloader"])
         # broadcast loaded_step to all ranks
        ## loaded = torch.tensor(dataloader_state_dict["global_step"] if rank == 0 else 0, device=self.device_name)
        ## torch.distributed.broadcast(loaded, src=0)
        ## self.loaded_step = int(loaded.item())
-        if self.device_mesh.get_rank() == 0:
-            print(f"Resuming from step {self.loaded_step}")
+#        if self.device_mesh.get_rank() == 0:
+#            print(f"Resuming from step {self.loaded_step}")
 
     def fit(self):
         rank = self.device_mesh.get_rank()
@@ -560,7 +570,7 @@ class FSDPSFTTrainer:
                 default_backend=self.config.trainer.logger,
             )
 
-        global_step = 0
+        global_step = getattr(self, "loaded_step", 0) #0
         last_valid_metric = None
         # compute the total training steps.
         # the total training steps in SFT is mainly for early exit
@@ -576,8 +586,7 @@ class FSDPSFTTrainer:
         # Currently, it blocks when uploading to hdfs. So very slow.
 
         for epoch in range(self.config.trainer.total_epochs):
-            self.train_sampler.set_epoch(epoch=epoch)
-            for data in tqdm(self.train_dataloader, total=self.steps_per_epoch, desc=f"Epoch {epoch + 1}/{self.config.trainer.total_epochs}", disable=rank != 0):
+            for data in tqdm(self.train_dataloader, total=self.steps_per_epoch, initial=global_step, desc=f"Epoch {epoch + 1}/{self.config.trainer.total_epochs}", disable=rank != 0):
                 global_step += 1
                 data = TensorDict(data, batch_size=self.config.data.train_batch_size).to(self.device_name)
                 metric = self.training_step(data)
