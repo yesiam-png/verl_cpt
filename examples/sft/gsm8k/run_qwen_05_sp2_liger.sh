@@ -21,7 +21,7 @@ torchrun --nnodes=8 --nproc_per_node=$nproc_per_node --node_rank $NODE_RANK --rd
     optim.weight_decay=0.1 \
     optim.warmup_steps_ratio=0 \
     +data.response_dict_keys=['text'] \
-    data.micro_batch_size_per_gpu=64 \
+    data.micro_batch_size_per_gpu=32 \
     model.partial_pretrain=ZhangShenao/Llama-3.2-1B \
     model.use_liger=True \
     trainer.project_name=cpt-math \
