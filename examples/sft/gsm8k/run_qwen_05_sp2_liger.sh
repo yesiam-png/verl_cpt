@@ -2,13 +2,13 @@ set -x
 
 nproc_per_node=8
 
-export MASTER_ADDR=240.62.12.115
+export MASTER_ADDR=240.62.179.97
 export MASTER_PORT=29500
 
 # Shift the arguments so $@ refers to the rest
 shift 2
 #--standalone #--node_rank 0 --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint="${MASTER_ADDR}:${MASTER_PORT}"
-torchrun --nnodes=2 --nproc_per_node=$nproc_per_node --node_rank 0 --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint="${MASTER_ADDR}:${MASTER_PORT}" \
+torchrun --nnodes=8 --nproc_per_node=$nproc_per_node --node_rank 0 --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint="${MASTER_ADDR}:${MASTER_PORT}" \
      -m verl.trainer.fsdp_sft_trainer \
     data.train_files=s3://afm-common-permanent/shenao_zhang/OctoThinkerProMax/train \
     data.val_files=s3://afm-common-permanent/shenao_zhang/OctoThinkerProMax/test \
@@ -25,7 +25,7 @@ torchrun --nnodes=2 --nproc_per_node=$nproc_per_node --node_rank 0 --rdzv_id "my
     model.partial_pretrain=ZhangShenao/Llama-3.2-1B \
     model.use_liger=True \
     trainer.project_name=cpt-math \
-    trainer.experiment_name=cpt-pack-llama-3.2-1b-sp4-liger-2node \
+    trainer.experiment_name=cpt-pack-llama-3.2-1b-sp4-liger-8node \
     trainer.logger=['console','wandb'] \
     trainer.default_hdfs_dir=null $@ \
     trainer.save_freq=2000 \
