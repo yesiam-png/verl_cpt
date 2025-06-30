@@ -39,7 +39,7 @@ from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.utils.data import DataLoader, Dataset, DistributedSampler
 from tqdm import tqdm
 from transformers import AutoConfig, AutoModelForCausalLM, PreTrainedModel
-
+from torchdata.stateful_dataloader import StatefulDataLoader
 import verl.utils.hdfs_io as hdfs_io
 from verl.utils.dataset import CPTDataset, PackedCPTDataset
 from verl.utils.dataset.multiturn_sft_dataset import MultiTurnSFTDataset
@@ -99,6 +99,11 @@ class FSDPSFTTrainer:
         # build model
         self._build_model_optimizer()
 
+        self.ckpt_dir = self.config.trainer.default_local_dir
+        os.makedirs(self.ckpt_dir, exist_ok=True)
+        # try to resume if there’s a previous checkpoint
+        self._load_checkpoint()
+
         # TODO: add checkpoint manager
         if self.device_mesh.get_rank() == 0:
             print(self.config)
@@ -137,7 +142,7 @@ class FSDPSFTTrainer:
             print(f"Using FSDP rank {rank} and size {world_size} for data distribution")
 
         self.train_sampler = DistributedSampler(self.train_dataset, shuffle=True, num_replicas=world_size, rank=rank, drop_last=True)
-        self.train_dataloader = DataLoader(
+        self.train_dataloader = StatefulDataLoader(
             dataset=self.train_dataset,
             batch_size=config.data.train_batch_size,
             sampler=self.train_sampler,
@@ -147,7 +152,7 @@ class FSDPSFTTrainer:
         )
 
         self.val_sampler = DistributedSampler(self.val_dataset, shuffle=False, num_replicas=world_size, rank=rank, drop_last=True)
-        self.val_dataloader = DataLoader(
+        self.val_dataloader = StatefulDataLoader(
             dataset=self.val_dataset,
             batch_size=config.data.micro_batch_size_per_gpu,
             sampler=self.val_sampler,
@@ -482,6 +487,67 @@ class FSDPSFTTrainer:
             hdfs_io.copy(src=path, dst=self.config.trainer.default_hdfs_dir, dirs_exist_ok=True)
 
         torch.distributed.barrier()
+        
+        # newly added
+        rank = self.device_mesh.get_rank()
+        # each rank writes its own optimizer+scheduler shard
+        torch.save(self.optimizer.state_dict(), os.path.join(path, f"optim_rank{rank}.pt"))
+        torch.save(self.lr_scheduler.state_dict(), os.path.join(path, f"sched_rank{rank}.pt"))
+
+        # only rank 0 writes the shared dataloader/sampler state
+        if rank == 0:
+            dl_state = {
+               # "sampler": self.train_sampler.state_dict(),
+                "dataloader": self.train_dataloader.state_dict(),
+                "global_step": step,
+            }
+            torch.save(dl_state, os.path.join(path, "dataloader.pt"))
+        torch.distributed.barrier()
+
+    def _find_latest_ckpt(self):
+        # find folders named global_step_<n> and return highest n
+        steps = []
+        for name in os.listdir(self.ckpt_dir):
+            m = re.match(r"global_step_(\d+)$", name)
+            if m:
+                steps.append(int(m.group(1)))
+        if steps:
+            print("Loading ckpts from global_step: ", max(steps))
+        return max(steps) if steps else None
+
+    def _load_checkpoint(self):
+        latest = self._find_latest_ckpt()
+        if latest is None:
+            return
+        path = os.path.join(self.ckpt_dir, f"global_step_{latest}")
+        # load model via existing save_checkpoint logic (just load HF weights & fsdp shards)
+        self.save_checkpoint = lambda *args, **kwargs: None  # disable during load
+        self.save_checkpoint = FSDPSFTTrainer.save_checkpoint.__get__(self)
+        # load model weights
+        self.model = AutoModelForCausalLM.from_pretrained(path, trust_remote_code=self.config.model.trust_remote_code)
+        # load optimizer & scheduler
+        rank = self.device_mesh.get_rank()
+        # each rank reloads its own optimizer+scheduler shard
+        optim_sd = torch.load(os.path.join(path, f"optim_rank{rank}.pt"), map_location="cpu", weights_only=False)
+        self.optimizer.load_state_dict(optim_sd)
+        sched_sd = torch.load(os.path.join(path, f"sched_rank{rank}.pt"), map_location="cpu", weights_only=False)
+        self.lr_scheduler.load_state_dict(sched_sd)
+
+        # only rank 0 reloads the shared dataloader state
+        if rank == 0:
+            #self.dl_state = torch.load(os.path.join(path, "dataloader.pt"), map_location="cpu")
+            #self.loaded_step = self.dl_state["global_step"]
+
+            dataloader_local_path = os.path.join(path, "dataloader.pt")
+            #if os.path.exists(dataloader_local_path):
+            dataloader_state_dict = torch.load(dataloader_local_path, weights_only=False)
+            self.train_dataloader.load_state_dict(dataloader_state_dict["dataloader"])
+        # broadcast loaded_step to all ranks
+       ## loaded = torch.tensor(dataloader_state_dict["global_step"] if rank == 0 else 0, device=self.device_name)
+       ## torch.distributed.broadcast(loaded, src=0)
+       ## self.loaded_step = int(loaded.item())
+        if self.device_mesh.get_rank() == 0:
+            print(f"Resuming from step {self.loaded_step}")
 
     def fit(self):
         rank = self.device_mesh.get_rank()
@@ -590,7 +656,7 @@ def create_sft_dataset(data_paths, data_config, tokenizer):
 
     # Create datasets based on the selected class
     if data_paths.endswith("train"):
-        data_paths = [data_paths[:-5] + f"000_{i:05d}.parquet" for i in range(100)]
+        data_paths = [data_paths[:-5] + f"000_{i:05d}.parquet" for i in range(1)]
     elif data_paths.endswith("test"):
         data_paths = [data_paths[:-4] + f"000_{i:05d}.parquet" for i in range(1)]
     dataset = dataset_cls(parquet_files=data_paths, tokenizer=tokenizer, config=data_config)
