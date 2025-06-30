@@ -589,6 +589,10 @@ def create_sft_dataset(data_paths, data_config, tokenizer):
         dataset_cls = CPTDataset
 
     # Create datasets based on the selected class
+    if data_paths.endswith("train"):
+        data_paths = [data_paths[:-5] + f"000_{i:05d}.parquet" for i in range(100)]
+    elif data_paths.endswith("test"):
+        data_paths = [data_paths[:-4] + f"000_{i:05d}.parquet" for i in range(1)]
     dataset = dataset_cls(parquet_files=data_paths, tokenizer=tokenizer, config=data_config)
     return dataset
 
