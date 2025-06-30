@@ -28,7 +28,7 @@ torchrun --nnodes=8 --nproc_per_node=$nproc_per_node --node_rank $NODE_RANK --rd
     trainer.experiment_name=cpt-pack-llama-3.2-1b-sp4-liger-8node-new \
     trainer.logger=['console','wandb'] \
     trainer.default_hdfs_dir=null $@ \
-    trainer.save_freq=2 \
+    trainer.save_freq=2000 \
     trainer.test_freq=-1 \
     ulysses_sequence_parallel_size=4 \
     use_remove_padding=true

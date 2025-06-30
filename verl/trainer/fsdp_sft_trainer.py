@@ -459,10 +459,10 @@ class FSDPSFTTrainer:
             cfg = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
             with FSDP.state_dict_type(self.fsdp_model, StateDictType.FULL_STATE_DICT, cfg):
                 state_dict = self.fsdp_model.state_dict()
-
+            os.makedirs(path, exist_ok=True)
             # save huggingface model
             if self.device_mesh.get_rank() == 0:
-                os.makedirs(path, exist_ok=True)
+                #os.makedirs(path, exist_ok=True)
                 self.model.save_pretrained(path, state_dict=state_dict)
                 self.tokenizer.save_pretrained(path)
         elif fsdp_strategy == "fsdp2":
@@ -472,10 +472,10 @@ class FSDPSFTTrainer:
             # Get full state dict with FSDP2
             options = StateDictOptions(full_state_dict=True, cpu_offload=True)
             state_dict = get_model_state_dict(self.fsdp_model, options=options)
-
+            os.makedirs(path, exist_ok=True)
             # save huggingface model
             if self.device_mesh.get_rank() == 0:
-                os.makedirs(path, exist_ok=True)
+               # os.makedirs(path, exist_ok=True)
                 self.model.save_pretrained(path, state_dict=state_dict)
                 self.model_config.save_pretrained(path)
                 self.tokenizer.save_pretrained(path)
@@ -665,7 +665,7 @@ def create_sft_dataset(data_paths, data_config, tokenizer):
 
     # Create datasets based on the selected class
     if data_paths.endswith("train"):
-        data_paths = [data_paths[:-5] + f"000_{i:05d}.parquet" for i in range(1)]
+        data_paths = [data_paths[:-5] + f"000_{i:05d}.parquet" for i in range(100)]
     elif data_paths.endswith("test"):
         data_paths = [data_paths[:-4] + f"000_{i:05d}.parquet" for i in range(1)]
     dataset = dataset_cls(parquet_files=data_paths, tokenizer=tokenizer, config=data_config)
