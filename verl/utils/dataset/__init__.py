@@ -17,5 +17,6 @@ from .rm_dataset import RMDataset
 from .sft_dataset import SFTDataset
 from .cpt_dataset import CPTDataset
 from .cpt_pack_dataset import PackedCPTDataset
+from .cpt_dataset_small import CPTSmallDataset
 
-__all__ = ["RLHFDataset", "RMDataset", "SFTDataset", "CPTDataset", "PackedCPTDataset"]
+__all__ = ["RLHFDataset", "RMDataset", "SFTDataset", "CPTDataset", "PackedCPTDataset", "CPTSmallDataset"]

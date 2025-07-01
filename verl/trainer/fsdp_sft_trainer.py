@@ -41,7 +41,7 @@ from tqdm import tqdm
 from transformers import AutoConfig, AutoModelForCausalLM, PreTrainedModel
 from torchdata.stateful_dataloader import StatefulDataLoader
 import verl.utils.hdfs_io as hdfs_io
-from verl.utils.dataset import CPTDataset, PackedCPTDataset
+from verl.utils.dataset import CPTDataset, PackedCPTDataset, CPTSmallDataset
 from verl.utils.dataset.multiturn_sft_dataset import MultiTurnSFTDataset
 from verl.utils.debug import log_gpu_memory_usage
 from verl.utils.device import get_device_id, get_device_name, is_cuda_available, is_npu_available
@@ -666,8 +666,16 @@ def create_sft_dataset(data_paths, data_config, tokenizer):
     # Create datasets based on the selected class
     if data_paths.endswith("train"):
         data_paths = [data_paths[:-5] + f"000_{i:05d}.parquet" for i in range(100)]
+        dataset_cls = CPTDataset
     elif data_paths.endswith("test"):
         data_paths = [data_paths[:-4] + f"000_{i:05d}.parquet" for i in range(1)]
+        dataset_cls = CPTDataset
+    elif data_paths.endswith("traincode"):
+        data_paths = [data_paths[:-9] + f"algorithmic_corpus_python.parquet"]
+        dataset_cls = CPTSmallDataset
+    elif data_paths.endswith("testcode"):
+        data_paths = [data_paths[:-8] + f"algorithmic_corpus_test.parquet"]
+        dataset_cls = CPTSmallDataset
     dataset = dataset_cls(parquet_files=data_paths, tokenizer=tokenizer, config=data_config)
     return dataset
 

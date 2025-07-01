@@ -30,7 +30,7 @@ from verl.utils.fs import copy_to_local
 from verl.utils.model import compute_position_id_with_mask
 
 
-class CPTDataset(Dataset):
+class CPTSmallDataset(Dataset):
     """
     This is an in-memory SFTDataset
 
@@ -50,14 +50,6 @@ class CPTDataset(Dataset):
         assert truncation in ["error", "left", "right"]
         self.truncation = truncation
         self.use_shm = use_shm
-        if parquet_files.endswith("train"):
-            parquet_files = [parquet_files[:-5] + f"000_{i:05d}.parquet" for i in range(10)]
-           # self.split = "train"
-        elif parquet_files.endswith("test"):
-            parquet_files = [parquet_files[:-4] + f"000_{i:05d}.parquet" for i in range(1)]
-           # self.split = "test"
-        if not isinstance(parquet_files, List):
-            parquet_files = [parquet_files]
 
         self.parquet_files = parquet_files
         if isinstance(tokenizer, str):
