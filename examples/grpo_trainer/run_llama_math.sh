@@ -5,14 +5,14 @@ set -x
 
 python3 -m verl.trainer.main_ppo \
     algorithm.adv_estimator=grpo \
-    data.train_files=$HOME/data/gsm8k_nochat/train.parquet \
-    data.val_files=$HOME/data/gsm8k_nochat/test.parquet \
+    data.train_files=$HOME/data/math_nochat/train.parquet \
+    data.val_files=$HOME/data/math_nochat/test.parquet \
     data.train_batch_size=1024 \
     data.max_prompt_length=512 \
     data.max_response_length=1024 \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
-    actor_rollout_ref.model.path=meta-llama/Llama-3.2-3B \
+    actor_rollout_ref.model.path=ZhangShenao/Llama-3.2-1B \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.actor.ppo_mini_batch_size=256 \
@@ -30,8 +30,8 @@ python3 -m verl.trainer.main_ppo \
     algorithm.use_kl_in_reward=False \
     trainer.critic_warmup=0 \
     trainer.logger=['console','wandb'] \
-    trainer.project_name='verl_grpo_example_gsm8k' \
-    trainer.experiment_name='llama_3b_base' \
+    trainer.project_name='verl_grpo_example_math' \
+    trainer.experiment_name='llama_1b_base' \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
     trainer.save_freq=20 \
