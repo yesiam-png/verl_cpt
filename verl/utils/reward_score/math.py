@@ -53,7 +53,6 @@ def remove_boxed(s):
         return s[len(left) :]
 
     left = "\\boxed{"
-
     assert s[: len(left)] == left
     assert s[-1] == "}"
 
