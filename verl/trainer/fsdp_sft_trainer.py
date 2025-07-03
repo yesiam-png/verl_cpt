@@ -102,7 +102,7 @@ class FSDPSFTTrainer:
         self.ckpt_dir = self.config.trainer.default_local_dir
         os.makedirs(self.ckpt_dir, exist_ok=True)
         # try to resume if there’s a previous checkpoint
-        self._load_checkpoint()
+        #self._load_checkpoint()
 
         # TODO: add checkpoint manager
         if self.device_mesh.get_rank() == 0:
