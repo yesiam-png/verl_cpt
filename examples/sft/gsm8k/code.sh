@@ -22,10 +22,10 @@ torchrun --nnodes=8 --nproc_per_node=$nproc_per_node --node_rank $NODE_RANK --rd
     optim.warmup_steps_ratio=0 \
     +data.response_dict_keys=['text'] \
     data.micro_batch_size_per_gpu=32 \
-    model.partial_pretrain=ZhangShenao/Llama-3.2-1B \
+    model.partial_pretrain=ZhangShenao/Llama-3.2-3B \
     model.use_liger=True \
     trainer.project_name=cpt-code \
-    trainer.experiment_name=cpt-code-llama3.2-1b-realalgodata \
+    trainer.experiment_name=cpt-code-llama3.2-3b-realalgodata \
     trainer.logger=['console','wandb'] \
     trainer.default_hdfs_dir=null $@ \
     trainer.save_freq=2000 \
