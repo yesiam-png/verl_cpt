@@ -671,10 +671,10 @@ def create_sft_dataset(data_paths, data_config, tokenizer):
         data_paths = [data_paths[:-4] + f"000_{i:05d}.parquet" for i in range(1)]
         dataset_cls = CPTDataset
     elif data_paths.endswith("traincode"):
-        data_paths = [data_paths[:-9] + f"algorithmic_corpus_python.parquet"]
+        data_paths = [data_paths[:-9] + f"real_alg_corpus_python.parquet"]
         dataset_cls = CPTSmallDataset
     elif data_paths.endswith("testcode"):
-        data_paths = [data_paths[:-8] + f"algorithmic_corpus_test.parquet"]
+        data_paths = [data_paths[:-8] + f"real_alg_corpus_python_test.parquet"]
         dataset_cls = CPTSmallDataset
     dataset = dataset_cls(parquet_files=data_paths, tokenizer=tokenizer, config=data_config)
     return dataset
