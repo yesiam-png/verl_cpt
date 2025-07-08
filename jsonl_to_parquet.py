@@ -6,10 +6,10 @@ jsonl_files = glob.glob("/mnt/task_runtime/opc-annealing-corpus/synthetic_qa/*.j
 
 # 2. Read each one into a DataFrame
 dfs = []
-for fn in jsonl_files:#[:10]:
+for fn in jsonl_files[:10]:
     # read_json with lines=True handles JSON Lines
     df = pd.read_json(fn, lines=True)
-    df = df[df['lang'] == 'python']
+    df = df[df['program_lang'] == 'python']
     dfs.append(df)
 
 # 3. Concatenate them all
