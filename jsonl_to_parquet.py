@@ -6,7 +6,7 @@ jsonl_files = glob.glob("/mnt/task_runtime/opc-annealing-corpus/synthetic_qa/*.j
 
 # 2. Read each one into a DataFrame
 dfs = []
-for fn in jsonl_files[:10]:
+for fn in jsonl_files:
     # read_json with lines=True handles JSON Lines
     df = pd.read_json(fn, lines=True)
     df = df[df['program_lang'] == 'python']
@@ -16,7 +16,7 @@ for fn in jsonl_files[:10]:
 all_data = pd.concat(dfs, ignore_index=True)
 
 # 4. Write out a single Parquet file
-all_data.to_parquet("/mnt/task_runtime/opc-annealing-corpus/parquet_files/real_alg_corpus_python_test.parquet", index=False)
+all_data.to_parquet("/mnt/task_runtime/opc-annealing-corpus/parquet_files/alg_human_python_train.parquet", index=False)
 
 """
 # — or — write out in multiple Parquet “row-group” files of ~100 MB each:
