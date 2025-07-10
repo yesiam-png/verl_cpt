@@ -13,7 +13,7 @@ torchrun --nnodes=8 --nproc_per_node=$nproc_per_node --node_rank $NODE_RANK --rd
     data.train_files=s3://afm-common-permanent/shenao_zhang/opc_annealing_real_algo_corpus/traincode \
     data.val_files=s3://afm-common-permanent/shenao_zhang/opc_annealing_real_algo_corpus/testcode \
     data.response_key=text \
-    data.max_length=8192 \
+    data.max_length=4096 \
     data.train_batch_size=512 \
     data.truncation=right \
     optim.lr=5e-5 \
@@ -25,7 +25,7 @@ torchrun --nnodes=8 --nproc_per_node=$nproc_per_node --node_rank $NODE_RANK --rd
     model.partial_pretrain=/mnt/task_runtime/OpenCoder-1.5B-Base-Checkpoints \
     model.use_liger=True \
     trainer.project_name=cpt-code \
-    trainer.experiment_name=cpt-opencoder \
+    trainer.experiment_name=cpt-opencoder-4k \
     trainer.logger=['console','wandb'] \
     trainer.default_hdfs_dir=null $@ \
     trainer.save_freq=2000 \
