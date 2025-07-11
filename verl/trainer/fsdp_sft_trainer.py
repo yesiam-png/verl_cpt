@@ -665,10 +665,10 @@ def create_sft_dataset(data_paths, data_config, tokenizer):
 
     # Create datasets based on the selected class
     if data_paths.endswith("train"):
-        data_paths = [data_paths[:-5] + f"python-train-part00{i}.parquet" for i in range(9)]
+        data_paths = [data_paths[:-5] + f"256small-python-train-part{i:03d}.parquet" for i in range(256)]
         dataset_cls = CPTDataset
     elif data_paths.endswith("test"):
-        data_paths = [data_paths[:-4] + f"python-train-part008.parquet"]
+        data_paths = [data_paths[:-4] + f"256small-python-train-part008.parquet"]
         dataset_cls = CPTDataset
     elif data_paths.endswith("traincode"):
         data_paths = [data_paths[:-9] + f"sync_python_removeassert.parquet"]

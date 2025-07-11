@@ -10,8 +10,8 @@ shift 2
 #--standalone #--node_rank $NODE_RANK --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint="${MASTER_ADDR}:${MASTER_PORT}"
 torchrun --nnodes=8 --nproc_per_node=$nproc_per_node --node_rank $NODE_RANK --rdzv_id "my_experiment" --rdzv_backend c10d --rdzv_endpoint="${MASTER_ADDR}:${MASTER_PORT}" \
      -m verl.trainer.fsdp_sft_trainer \
-    data.train_files=s3://afm-common-permanent/shenao_zhang/20b_python_data/train \
-    data.val_files=s3://afm-common-permanent/shenao_zhang/20b_python_data/test \
+    data.train_files=s3://afm-common-permanent/shenao_zhang/small_20b_python_data/train \
+    data.val_files=s3://afm-common-permanent/shenao_zhang/small_20b_python_data/test \
     data.response_key=text \
     data.max_length=8192 \
     data.train_batch_size=512 \
