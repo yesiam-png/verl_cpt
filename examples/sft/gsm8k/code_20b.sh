@@ -25,10 +25,10 @@ torchrun --nnodes=2 --nproc_per_node=$nproc_per_node --node_rank $NODE_RANK --rd
     model.partial_pretrain=ZhangShenao/Llama-3.2-3B \
     model.use_liger=True \
     trainer.project_name=llama-cpt \
-    trainer.experiment_name=llama3b-cpt-real20b \
+    trainer.experiment_name=llama3b-cpt-real5b \
     trainer.logger=['console','wandb'] \
     trainer.default_hdfs_dir=null $@ \
     trainer.save_freq=2000 \
     trainer.test_freq=-1 \
-    ulysses_sequence_parallel_size=2 \
+    ulysses_sequence_parallel_size=4 \
     use_remove_padding=true
